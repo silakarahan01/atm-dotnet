@@ -1,0 +1,35 @@
+@inject ATMStateService State
+
+<div class="screen-content menu-screen">
+    <div class="menu-header">
+        <div class="menu-greeting">Merhaba, @State.CardholderName</div>
+        <div class="menu-balance-preview">Bakiye: <span>@State.Balance.ToString("N2") ₺</span></div>
+    </div>
+
+    <div class="menu-grid">
+        <button class="menu-btn" @onclick="() => State.NavigateTo(ATMScreen.Balance)">
+            <i class="bi bi-wallet2 menu-icon"></i>
+            <span class="menu-label">Bakiye Sorgula</span>
+        </button>
+        <button class="menu-btn" @onclick="() => State.NavigateTo(ATMScreen.Withdraw)">
+            <i class="bi bi-arrow-up-circle menu-icon"></i>
+            <span class="menu-label">Para Çek</span>
+        </button>
+        <button class="menu-btn" @onclick="() => State.NavigateTo(ATMScreen.Deposit)">
+            <i class="bi bi-arrow-down-circle menu-icon"></i>
+            <span class="menu-label">Para Yatır</span>
+        </button>
+        <button class="menu-btn" @onclick="() => State.NavigateTo(ATMScreen.Transfer)">
+            <i class="bi bi-arrow-left-right menu-icon"></i>
+            <span class="menu-label">Havale / EFT</span>
+        </button>
+        <button class="menu-btn" @onclick="() => State.NavigateTo(ATMScreen.History)">
+            <i class="bi bi-clock-history menu-icon"></i>
+            <span class="menu-label">İşlem Geçmişi</span>
+        </button>
+        <button class="menu-btn exit-btn" @onclick="State.Logout">
+            <i class="bi bi-box-arrow-right menu-icon"></i>
+            <span class="menu-label">Çıkış</span>
+        </button>
+    </div>
+</div>

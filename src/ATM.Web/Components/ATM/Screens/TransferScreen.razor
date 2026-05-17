@@ -1,0 +1,77 @@
+@inject ATMStateService State
+
+<div class="screen-content transfer-screen">
+    <div class="screen-title">Havale / EFT</div>
+    <div class="balance-info">Bakiye: <strong>@State.Balance.ToString("N2") ₺</strong></div>
+
+    @if (!_showConfirm)
+    {
+        <div style="width:100%;text-align:left;">
+            <div class="input-label">Alıcı Hesap Numarası</div>
+            <input class="input-field"
+                   type="text"
+                   placeholder="TR..."
+                   @bind="_targetAccount"
+                   @bind:event="oninput" />
+        </div>
+
+        <div style="width:100%;text-align:left;margin-top:10px;">
+            <div class="input-label">Tutar (₺)</div>
+            <input class="input-field"
+                   type="number" min="1" max="@State.Balance"
+                   placeholder="0"
+                   @bind="_amount"
+                   @bind:event="oninput" />
+        </div>
+
+        <button class="screen-btn primary"
+                disabled="@(!CanProceed)"
+                @onclick="ShowConfirm">
+            Devam →
+        </button>
+    }
+    else
+    {
+        <div class="confirm-box">
+            <div class="confirm-row">
+                <span class="confirm-label">Alıcı:</span>
+                <span class="confirm-value">@_targetAccount</span>
+            </div>
+            <div class="confirm-row">
+                <span class="confirm-label">Tutar:</span>
+                <span class="confirm-value">@_amount.ToString("N2") ₺</span>
+            </div>
+        </div>
+        <button class="screen-btn primary" @onclick="DoTransfer">Gönder ✓</button>
+        <button class="screen-btn back-btn" @onclick="() => _showConfirm = false">← Düzenle</button>
+    }
+
+    @if (State.HasError)
+    {
+        <div class="error-msg">@State.ErrorMessage</div>
+    }
+    @if (State.SuccessMessage != null)
+    {
+        <div class="success-msg">@State.SuccessMessage</div>
+    }
+
+    <button class="screen-btn back-btn" @onclick="() => State.NavigateTo(ATMScreen.Menu)">← Ana Menü</button>
+</div>
+
+@code {
+    private string _targetAccount = "";
+    private decimal _amount = 0;
+    private bool _showConfirm = false;
+
+    private bool CanProceed => _targetAccount.Length >= 5 && _amount > 0 && _amount <= State.Balance;
+
+    private void ShowConfirm() => _showConfirm = true;
+
+    private async Task DoTransfer()
+    {
+        await State.TransferAsync(_targetAccount, _amount);
+        _targetAccount = "";
+        _amount = 0;
+        _showConfirm = false;
+    }
+}

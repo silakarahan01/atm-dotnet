@@ -1,0 +1,25 @@
+# Build outputs
+bin/
+obj/
+
+# SQLite database
+*.db
+*.db-shm
+*.db-wal
+
+# .NET user secrets and local settings
+appsettings.Development.json
+*.user
+*.suo
+
+# Visual Studio / Rider
+.vs/
+.idea/
+*.sln.docstates
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log

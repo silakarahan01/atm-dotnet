@@ -1,0 +1,52 @@
+@inject ATMStateService State
+
+<div class="screen-content deposit-screen">
+    <div class="screen-title">Para Yatırma</div>
+
+    <div style="width:100%;text-align:left;">
+        <div class="input-label">Yatırılacak Tutar (₺)</div>
+        <input class="input-field"
+               type="number" min="1"
+               placeholder="0"
+               @bind="_amount"
+               @bind:event="oninput" />
+    </div>
+
+    @if (_amount > 0 && !_confirmed)
+    {
+        <div class="confirm-box">
+            <div class="confirm-text">@_amount.ToString("N2") ₺ yatırılacak.</div>
+            <div class="confirm-text">Onaylıyor musunuz?</div>
+        </div>
+        <button class="screen-btn primary" @onclick="Deposit">Onayla ✓</button>
+    }
+    else if (!_confirmed)
+    {
+        <button class="screen-btn primary" disabled="true">Onayla ✓</button>
+    }
+
+    @if (State.HasError)
+    {
+        <div class="error-msg">@State.ErrorMessage</div>
+    }
+    @if (State.SuccessMessage != null)
+    {
+        <div class="success-msg">@State.SuccessMessage</div>
+    }
+
+    <button class="screen-btn back-btn" @onclick="() => State.NavigateTo(ATMScreen.Menu)">← Ana Menü</button>
+</div>
+
+@code {
+    private decimal _amount = 0;
+    private bool _confirmed = false;
+
+    private async Task Deposit()
+    {
+        if (_amount <= 0) return;
+        _confirmed = true;
+        await State.DepositAsync(_amount);
+        _amount = 0;
+        _confirmed = false;
+    }
+}

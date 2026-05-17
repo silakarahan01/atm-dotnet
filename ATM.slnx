@@ -1,0 +1,9 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/ATM.API/ATM.API.csproj" />
+    <Project Path="src/ATM.ConsoleClient/ATM.ConsoleClient.csproj" />
+    <Project Path="src/ATM.Core/ATM.Core.csproj" />
+    <Project Path="src/ATM.Infrastructure/ATM.Infrastructure.csproj" />
+    <Project Path="src/ATM.Web/ATM.Web.csproj" />
+  </Folder>
+</Solution>

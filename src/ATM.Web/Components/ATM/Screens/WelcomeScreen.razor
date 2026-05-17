@@ -1,0 +1,59 @@
+@inject ATMStateService State
+
+<div class="screen-content welcome-screen">
+    <div class="welcome-logo"><i class="bi bi-bank2"></i></div>
+    <div class="welcome-bank-name">SILA BANK</div>
+    <div class="welcome-tagline">Güvenli · Hızlı · Kolay</div>
+
+    @if (!_showInput)
+    {
+        <div class="card-visual" @onclick="ShowInput">
+            <div class="card-chip"></div>
+        </div>
+        <div class="welcome-instruction">Kartınızı takınız</div>
+    }
+    else
+    {
+        <div style="width:100%;text-align:left;">
+            <div class="input-label">Kart Numarası</div>
+            <input class="input-field"
+                   type="text"
+                   maxlength="16"
+                   placeholder="16 haneli kart numarası"
+                   @bind="_cardNumber"
+                   @bind:event="oninput"
+                   @onkeydown="OnKeyDown"
+                   style="letter-spacing:2px;" />
+        </div>
+        <button class="screen-btn primary" @onclick="InsertCard" disabled="@(_cardNumber.Length != 16)">
+            Kartı Tak →
+        </button>
+        <button class="screen-btn back-btn" @onclick="() => _showInput = false">İptal</button>
+    }
+
+    @if (State.HasError)
+    {
+        <div class="error-msg">@State.ErrorMessage</div>
+    }
+</div>
+
+@code {
+    private bool _showInput = false;
+    private string _cardNumber = "";
+
+    private void ShowInput() => _showInput = true;
+
+    private async Task InsertCard()
+    {
+        if (_cardNumber.Length != 16) return;
+        State.InsertCard();
+        await State.LoadCardAsync(_cardNumber);
+        _cardNumber = "";
+        _showInput = false;
+    }
+
+    private async Task OnKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter") await InsertCard();
+    }
+}

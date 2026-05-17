@@ -1,0 +1,65 @@
+@inject ATMStateService State
+
+<div class="screen-content withdraw-screen">
+    <div class="screen-title">Para Çekme</div>
+    <div class="balance-info">Kullanılabilir: <strong>@State.Balance.ToString("N2") ₺</strong></div>
+
+    @if (!_customMode)
+    {
+        <div class="quick-amounts">
+            @foreach (var amt in _quickAmounts)
+            {
+                var a = amt;
+                <button class="quick-btn @(a > State.Balance ? "disabled-amount" : "")"
+                        disabled="@(a > State.Balance)"
+                        @onclick="() => Withdraw(a)">
+                    @a.ToString("N0") ₺
+                </button>
+            }
+        </div>
+        <button class="screen-btn secondary" @onclick="() => _customMode = true">Diğer Tutar</button>
+    }
+    else
+    {
+        <div style="width:100%;text-align:left;">
+            <div class="input-label">Tutar (₺)</div>
+            <input class="input-field"
+                   type="number" min="1" max="@State.Balance"
+                   placeholder="0"
+                   @bind="_customAmount"
+                   @bind:event="oninput" />
+        </div>
+        <button class="screen-btn primary"
+                disabled="@(!CanWithdraw)"
+                @onclick="() => Withdraw(_customAmount)">
+            Çek →
+        </button>
+        <button class="screen-btn back-btn" @onclick="() => _customMode = false">← Geri</button>
+    }
+
+    @if (State.HasError)
+    {
+        <div class="error-msg">@State.ErrorMessage</div>
+    }
+    @if (State.SuccessMessage != null)
+    {
+        <div class="success-msg">@State.SuccessMessage</div>
+    }
+
+    <button class="screen-btn back-btn" @onclick="() => State.NavigateTo(ATMScreen.Menu)">← Ana Menü</button>
+</div>
+
+@code {
+    private readonly decimal[] _quickAmounts = { 50, 100, 200, 500, 1000 };
+    private bool _customMode = false;
+    private decimal _customAmount = 0;
+
+    private bool CanWithdraw => _customAmount > 0 && _customAmount <= State.Balance;
+
+    private async Task Withdraw(decimal amount)
+    {
+        await State.WithdrawAsync(amount);
+        _customAmount = 0;
+        _customMode = false;
+    }
+}

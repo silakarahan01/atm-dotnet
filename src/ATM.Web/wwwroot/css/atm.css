@@ -1,0 +1,1144 @@
+/* ============================================================
+   ATM SİMÜLASYON — GLOBAL STILLER
+   ============================================================ */
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    overflow: hidden;
+    user-select: none;
+}
+
+/* ============================================================
+   BANKA ODASI ARKA PLANI
+   ============================================================ */
+
+.atm-room {
+    width: 100vw;
+    height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    overflow: hidden;
+    /* Duvar + zemin geçişi (lacivert banka şubesi) */
+    background: linear-gradient(180deg,
+        #1e3a5f 0%,
+        #2c4a73 55%,
+        #0f2238 55%,
+        #0a1828 100%
+    );
+}
+
+/* Tavan aydınlatma yansıması */
+.atm-room::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 45%;
+    background: radial-gradient(ellipse 80% 60% at 50% 0%, rgba(255,255,255,0.18) 0%, transparent 70%);
+    pointer-events: none;
+}
+
+/* Zemin çizgileri (perspektif fayans) */
+.atm-room::after {
+    content: '';
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 45%;
+    background:
+        repeating-linear-gradient(90deg,
+            transparent 0px,
+            transparent 59px,
+            rgba(255,255,255,0.05) 59px,
+            rgba(255,255,255,0.05) 60px
+        );
+    mask-image: linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.8) 100%);
+    -webkit-mask-image: linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.8) 100%);
+    pointer-events: none;
+}
+
+/* Zemin gölgesi (ATM altında) */
+.atm-shadow {
+    position: absolute;
+    bottom: 20%;
+    width: 360px;
+    height: 40px;
+    background: radial-gradient(ellipse, rgba(0,0,0,0.25) 0%, transparent 70%);
+    z-index: 5;
+}
+
+/* ============================================================
+   ATM MAKİNESİ GÖVDESİ
+   ============================================================ */
+
+.atm-machine {
+    position: relative;
+    z-index: 10;
+    width: 400px;
+    background: linear-gradient(160deg, #3a3a38 0%, #2c2c2a 50%, #222220 100%);
+    border-radius: 22px 22px 18px 18px;
+    padding: 18px 22px 22px;
+    box-shadow:
+        0 40px 80px rgba(0,0,0,0.55),
+        0 0 0 1.5px #484846,
+        0 0 0 3px #1a1a18,
+        inset 0 1px 0 rgba(255,255,255,0.07),
+        inset 0 -2px 0 rgba(0,0,0,0.3);
+    transition: box-shadow 0.3s;
+}
+
+.atm-machine.error-state {
+    box-shadow:
+        0 40px 80px rgba(0,0,0,0.55),
+        0 0 0 2px #e24b4a,
+        0 0 20px rgba(226,75,74,0.3),
+        inset 0 1px 0 rgba(255,255,255,0.07);
+}
+
+/* Vidalı köşe süslemeleri */
+.atm-machine::before,
+.atm-machine::after {
+    content: '';
+    position: absolute;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: #444;
+    box-shadow: inset 0 1px 2px rgba(0,0,0,0.9), 0 0 0 1px #333;
+    top: 14px;
+}
+.atm-machine::before { left: 14px; }
+.atm-machine::after  { right: 14px; }
+
+/* ============================================================
+   ATM ÜSTÜ: LOGO + DURUM IŞIĞI
+   ============================================================ */
+
+.atm-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 4px 4px 14px;
+}
+
+.atm-brand {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #c8d0d8;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+}
+
+.brand-icon { font-size: 16px; color: #c8d0d8; }
+
+.status-light {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    box-shadow: 0 0 6px 2px currentColor;
+    transition: background-color 0.3s, color 0.3s;
+}
+.status-light.green  { background: #1d9e75; color: #1d9e75; animation: pulse-green 2s infinite; }
+.status-light.yellow { background: #f0c040; color: #f0c040; animation: pulse-yellow 0.8s infinite; }
+.status-light.red    { background: #e24b4a; color: #e24b4a; animation: pulse-red 0.4s infinite; }
+
+@keyframes pulse-green  { 0%,100%{opacity:1} 50%{opacity:0.5} }
+@keyframes pulse-yellow { 0%,100%{opacity:1} 50%{opacity:0.4} }
+@keyframes pulse-red    { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+/* ============================================================
+   EKRAN ÇERÇEVESİ + EKRAN
+   ============================================================ */
+
+.atm-screen-frame {
+    background: #1a1a2e;
+    border-radius: 10px;
+    padding: 12px;
+    box-shadow:
+        inset 0 3px 8px rgba(0,0,0,0.6),
+        inset 0 0 0 1px rgba(255,255,255,0.04),
+        0 2px 4px rgba(0,0,0,0.4);
+}
+
+.atm-screen {
+    width: 100%;
+    height: 300px;
+    background: #0d1117;
+    border-radius: 6px;
+    overflow: hidden;
+    position: relative;
+    box-shadow: inset 0 0 30px rgba(0,0,0,0.5);
+}
+
+/* Ekran tarama çizgisi efekti */
+.atm-screen::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 2px,
+        rgba(0,0,0,0.04) 2px,
+        rgba(0,0,0,0.04) 4px
+    );
+    pointer-events: none;
+    z-index: 100;
+}
+
+/* ============================================================
+   ALT PANEL: KART + PARA YUVASI
+   ============================================================ */
+
+.atm-panel {
+    margin-top: 16px;
+    display: grid;
+    grid-template-columns: 1fr 80px 1fr;
+    gap: 12px;
+    align-items: center;
+}
+
+.atm-slot {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+}
+
+.slot-label {
+    font-size: 8px;
+    letter-spacing: 1.5px;
+    color: #555;
+    text-transform: uppercase;
+}
+
+.slot-opening {
+    width: 100%;
+    height: 6px;
+    background: #111;
+    border-radius: 3px;
+    box-shadow: inset 0 2px 4px rgba(0,0,0,0.8);
+    overflow: hidden;
+    position: relative;
+}
+
+.card-slot .slot-opening { width: 80%; height: 5px; }
+
+/* Para slotu — görsel referans katmanı */
+.slot-wrapper {
+    position: relative;
+    width: 100%;
+}
+
+.money-slot .slot-opening {
+    height: 14px;
+    border-radius: 4px;
+    overflow: hidden;
+    position: relative;
+    z-index: 2;   /* slotun üstünde kalır → banknotların alt kısmını maskeler */
+    width: 100%;
+    background: #0a0a0a;
+    box-shadow: inset 0 3px 6px rgba(0,0,0,0.9), inset 0 -1px 0 rgba(255,255,255,0.04);
+}
+
+/* ============================================================
+   BANKNOT ÇIKIŞ SİSTEMİ — PARA SAYMA MAKİNESİ EFEKTİ
+   Her banknot slottan hızlıca fırlar, kısa gecikmeyle birer birer
+   ============================================================ */
+
+.cash-dispense {
+    position: absolute;
+    bottom: 0;
+    left: -4px; right: -4px;
+    height: 56px;
+    z-index: 1;   /* slot-opening (z-index:2) arkasında — alt kısım maskelenir */
+}
+
+/* Ortak banknot stilleri */
+.bill {
+    position: absolute;
+    left: 0; right: 0;
+    bottom: 0;
+    height: 50px;
+    border-radius: 2px;
+    overflow: hidden;
+    opacity: 0;
+    /* CSS variable: her banknotun kendi açısı */
+    transform: translateY(115%) rotate(var(--r, 0deg));
+}
+
+/* Baskı çizgisi dokusu + iç çerçeve */
+.bill::before {
+    content: '';
+    position: absolute;
+    inset: 3px;
+    border: 1px solid rgba(255,255,255,0.16);
+    border-radius: 1px;
+    background: repeating-linear-gradient(
+        0deg,
+        transparent 0px,
+        transparent 4px,
+        rgba(0,0,0,0.08) 4px,
+        rgba(0,0,0,0.08) 5px
+    );
+}
+
+/* Filigran */
+.bill::after {
+    content: '₺';
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 13px;
+    font-weight: 700;
+    color: rgba(255,255,255,0.15);
+    pointer-events: none;
+}
+
+/* 5 banknot — farklı ton, açı ve gecikme */
+.bill-1 {
+    --r: -2.5deg;
+    background: linear-gradient(150deg, #4e8c4a 0%, #357030 100%);
+    z-index: 1;
+    animation: bill-eject 0.32s cubic-bezier(0.22, 1, 0.36, 1) 0.00s forwards;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.55);
+}
+.bill-2 {
+    --r: 1.8deg;
+    background: linear-gradient(150deg, #569852 0%, #3e7a3a 100%);
+    z-index: 2;
+    animation: bill-eject 0.32s cubic-bezier(0.22, 1, 0.36, 1) 0.14s forwards;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.5);
+}
+.bill-3 {
+    --r: -1deg;
+    background: linear-gradient(150deg, #5ea45a 0%, #468244 100%);
+    z-index: 3;
+    animation: bill-eject 0.32s cubic-bezier(0.22, 1, 0.36, 1) 0.28s forwards;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.45);
+}
+.bill-4 {
+    --r: 2.2deg;
+    background: linear-gradient(150deg, #66ae62 0%, #4e8a4c 100%);
+    z-index: 4;
+    animation: bill-eject 0.32s cubic-bezier(0.22, 1, 0.36, 1) 0.42s forwards;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+}
+.bill-5 {
+    --r: -0.5deg;
+    background: linear-gradient(150deg, #70ba6c 0%, #569456 100%);
+    z-index: 5;
+    animation: bill-eject 0.32s cubic-bezier(0.22, 1, 0.36, 1) 0.56s forwards;
+    box-shadow: 0 3px 10px rgba(0,0,0,0.5);
+}
+
+/*
+  Animasyon:
+  translateY(115%) → slotun içinde gizli
+  translateY(-6px) → slotun üstünde 6px → duruş pozisyonu
+  translateY(-10px) → hafif overshoot (fırlama hissi)
+*/
+@keyframes bill-eject {
+    0%   { transform: translateY(115%) rotate(var(--r, 0deg)); opacity: 0; }
+    10%  { opacity: 1; }
+    70%  { transform: translateY(-10px) rotate(var(--r, 0deg)); }
+    85%  { transform: translateY(-14px) rotate(var(--r, 0deg)); }
+    100% { transform: translateY(-10px) rotate(var(--r, 0deg)); opacity: 1; }
+}
+
+/* Kart animasyonu */
+.card-in {
+    position: absolute;
+    top: 50%; left: 100%;
+    transform: translateY(-50%);
+    width: 60px; height: 3px;
+    background: linear-gradient(90deg, #1a73e8, #4a90e8);
+    border-radius: 1px;
+    animation: card-insert 1.2s ease-in-out forwards;
+}
+
+@keyframes card-insert {
+    0%   { left: 100%; }
+    100% { left: -10%; }
+}
+
+/* Orta sembol alanı */
+.atm-panel-center {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+}
+
+.panel-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: #333;
+    box-shadow: inset 0 1px 2px rgba(0,0,0,0.8);
+}
+
+/* ============================================================
+   EKRAN İÇİ — GENEL LAYOUT
+   ============================================================ */
+
+.screen-content {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    padding: 20px 18px 16px;
+    animation: screenFadeIn 0.3s ease;
+}
+
+@keyframes screenFadeIn {
+    from { opacity: 0; transform: translateY(6px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+.screen-header {
+    font-size: 9px;
+    letter-spacing: 2.5px;
+    color: #00ff88;
+    text-transform: uppercase;
+    margin-bottom: 14px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid rgba(0,255,136,0.15);
+    padding-bottom: 8px;
+}
+
+.screen-title {
+    font-size: 15px;
+    font-weight: 600;
+    color: #ffffff;
+    margin-bottom: 4px;
+}
+
+.screen-subtitle {
+    font-size: 11px;
+    color: #6b7f8f;
+    margin-bottom: 16px;
+}
+
+/* ============================================================
+   KARŞILAMA EKRANI
+   ============================================================ */
+
+.welcome-screen {
+    background: #0d1117;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    gap: 10px;
+}
+
+.welcome-logo {
+    font-size: 40px;
+    margin-bottom: 4px;
+    animation: float 3s ease-in-out infinite;
+    color: #00ff88;
+    line-height: 1;
+}
+
+@keyframes float {
+    0%,100% { transform: translateY(0); }
+    50%      { transform: translateY(-6px); }
+}
+
+.welcome-bank-name {
+    font-size: 20px;
+    font-weight: 800;
+    color: #00ff88;
+    letter-spacing: 4px;
+}
+
+.welcome-tagline {
+    font-size: 10px;
+    color: #4a6070;
+    letter-spacing: 1px;
+    margin-bottom: 16px;
+}
+
+.welcome-instruction {
+    font-size: 11px;
+    color: #8a9faf;
+    animation: blink-text 1.5s ease-in-out infinite;
+}
+
+@keyframes blink-text {
+    0%,100% { opacity: 1; }
+    50%      { opacity: 0.4; }
+}
+
+.card-visual {
+    width: 80px; height: 50px;
+    background: linear-gradient(135deg, #1a73e8 0%, #0d47a1 100%);
+    border-radius: 6px;
+    margin: 10px auto;
+    box-shadow: 0 4px 12px rgba(26,115,232,0.4);
+    position: relative;
+    cursor: pointer;
+    transition: transform 0.2s;
+    display: flex;
+    align-items: flex-end;
+    padding: 6px 8px;
+}
+
+.card-visual:hover { transform: scale(1.05); }
+.card-visual:active { transform: scale(0.97); }
+
+.card-chip {
+    width: 14px; height: 10px;
+    background: linear-gradient(135deg, #d4a840 0%, #f0c840 100%);
+    border-radius: 2px;
+}
+
+.card-visual::after {
+    content: '\203A';
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: rgba(255,255,255,0.5);
+    font-size: 16px;
+    font-weight: 300;
+    animation: blink-text 1s infinite;
+}
+
+/* ============================================================
+   PIN GİRİŞ EKRANI
+   ============================================================ */
+
+.pin-screen { background: #0d1117; }
+
+.pin-dots {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+    margin: 8px 0 16px;
+}
+
+.pin-dot {
+    width: 14px; height: 14px;
+    border-radius: 50%;
+    border: 2px solid #2a4060;
+    background: transparent;
+    transition: all 0.15s;
+}
+
+.pin-dot.filled {
+    background: #00ff88;
+    border-color: #00ff88;
+    box-shadow: 0 0 6px rgba(0,255,136,0.6);
+}
+
+.pin-keypad {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+    flex: 1;
+}
+
+.key-btn {
+    height: 38px;
+    background: #111b26;
+    border: 1px solid #1e3045;
+    border-radius: 6px;
+    color: #fff;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.1s, transform 0.1s, border-color 0.1s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.key-btn:hover  { background: #162030; border-color: #2a4a6a; }
+.key-btn:active { transform: scale(0.95); background: #0f1820; }
+
+.key-btn.key-delete { color: #e24b4a; font-size: 18px; }
+.key-btn.key-ok     { background: #0d4a2a; border-color: #1d9e75; color: #00ff88; }
+.key-btn.key-ok:hover { background: #10592f; }
+
+/* ============================================================
+   ANA MENÜ
+   ============================================================ */
+
+.menu-screen { background: #0d1117; }
+
+.menu-user {
+    font-size: 11px;
+    color: #6b7f8f;
+    margin-bottom: 10px;
+}
+
+.menu-user span { color: #00ff88; font-weight: 600; }
+
+.menu-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 7px;
+    flex: 1;
+}
+
+.menu-btn {
+    background: #111b26;
+    border: 1px solid #1e3045;
+    border-radius: 8px;
+    color: #c8d8e8;
+    font-size: 11px;
+    font-weight: 500;
+    cursor: pointer;
+    padding: 10px 8px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 5px;
+    transition: background 0.15s, border-color 0.15s, transform 0.1s;
+}
+
+.menu-btn:hover  { background: #162030; border-color: #2a4a6a; color: #fff; }
+.menu-btn:active { transform: scale(0.97); }
+
+.menu-btn .btn-icon { font-size: 20px; }
+
+.menu-btn.exit-btn {
+    grid-column: 1 / -1;
+    flex-direction: row;
+    justify-content: center;
+    gap: 8px;
+    height: 36px;
+    padding: 6px;
+    border-color: #3a1515;
+    color: #e24b4a;
+    font-size: 11px;
+}
+
+.menu-btn.exit-btn:hover { background: #1a0a0a; border-color: #e24b4a; }
+
+/* ============================================================
+   BAKİYE EKRANI
+   ============================================================ */
+
+.balance-screen { background: #0d1117; align-items: center; justify-content: center; }
+
+.balance-account-no {
+    font-size: 11px;
+    color: #4a6070;
+    letter-spacing: 2px;
+    margin-bottom: 8px;
+}
+
+.balance-amount {
+    font-size: 32px;
+    font-weight: 700;
+    color: #00ff88;
+    text-shadow: 0 0 20px rgba(0,255,136,0.3);
+    margin: 4px 0 16px;
+    font-variant-numeric: tabular-nums;
+}
+
+.balance-label {
+    font-size: 9px;
+    letter-spacing: 2px;
+    color: #3a5060;
+    text-transform: uppercase;
+}
+
+/* ============================================================
+   PARA ÇEK EKRANI
+   ============================================================ */
+
+.quick-amounts {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+    margin-bottom: 10px;
+}
+
+.amount-btn {
+    height: 36px;
+    background: #111b26;
+    border: 1px solid #1e3045;
+    border-radius: 6px;
+    color: #c8d8e8;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.1s, border-color 0.1s, transform 0.1s;
+}
+
+.amount-btn:hover  { background: #162030; border-color: #1a73e8; color: #fff; }
+.amount-btn:active { transform: scale(0.96); }
+.amount-btn.selected { background: #0d2a4a; border-color: #1a73e8; color: #1a73e8; }
+
+/* ============================================================
+   SAYISAL KLAVYE (DEPOSIT / TRANSFER TUTAR GİRİŞİ)
+   ============================================================ */
+
+.num-display {
+    background: #060c12;
+    border: 1px solid #1e3045;
+    border-radius: 6px;
+    padding: 8px 12px;
+    text-align: right;
+    font-size: 18px;
+    font-weight: 600;
+    color: #00ff88;
+    letter-spacing: 1px;
+    margin-bottom: 8px;
+    font-variant-numeric: tabular-nums;
+    min-height: 40px;
+}
+
+.num-display .currency { font-size: 12px; color: #3a5060; margin-right: 4px; }
+
+/* ============================================================
+   SON İŞLEMLER
+   ============================================================ */
+
+.tx-list {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    overflow-y: auto;
+    flex: 1;
+    scrollbar-width: thin;
+    scrollbar-color: #1e3045 transparent;
+}
+
+.tx-item {
+    display: grid;
+    grid-template-columns: 24px 1fr auto;
+    gap: 6px;
+    align-items: center;
+    padding: 7px 8px;
+    background: #111b26;
+    border-radius: 6px;
+    border-left: 3px solid transparent;
+    font-size: 10px;
+}
+
+.tx-item.deposit  { border-color: #1d9e75; }
+.tx-item.withdraw { border-color: #e24b4a; }
+.tx-item.transfer { border-color: #1a73e8; }
+
+.tx-icon { font-size: 14px; text-align: center; }
+.tx-info .tx-type { color: #8a9faf; font-size: 9px; letter-spacing: 0.5px; }
+.tx-info .tx-desc { color: #c8d8e8; font-size: 10px; margin-top: 1px; }
+.tx-info .tx-date { color: #3a5060; font-size: 8px; }
+
+.tx-amount { text-align: right; font-weight: 700; font-size: 11px; font-variant-numeric: tabular-nums; }
+.tx-amount.positive { color: #1d9e75; }
+.tx-amount.negative { color: #e24b4a; }
+.tx-amount.neutral  { color: #1a73e8; }
+
+/* ============================================================
+   ORTAK UI ELEMENTLERİ
+   ============================================================ */
+
+.screen-btn {
+    width: 100%;
+    height: 36px;
+    border: 1px solid #1e3045;
+    border-radius: 6px;
+    background: #111b26;
+    color: #c8d8e8;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.15s, transform 0.1s;
+    margin-top: 6px;
+}
+
+.screen-btn:hover  { background: #162030; }
+.screen-btn:active { transform: scale(0.98); }
+
+.screen-btn.primary {
+    background: #0d3a80;
+    border-color: #1a73e8;
+    color: #fff;
+}
+
+.screen-btn.primary:hover { background: #1040a0; }
+
+.screen-btn.success {
+    background: #0d3a20;
+    border-color: #1d9e75;
+    color: #00ff88;
+}
+
+.screen-btn.danger {
+    background: #3a0d0d;
+    border-color: #e24b4a;
+    color: #e24b4a;
+}
+
+.screen-btn.back-btn {
+    color: #4a6070;
+    font-size: 11px;
+    border-color: #151f2a;
+    height: 28px;
+}
+
+/* Hata mesajı */
+.error-msg {
+    background: rgba(226,75,74,0.1);
+    border: 1px solid rgba(226,75,74,0.3);
+    border-radius: 6px;
+    color: #e24b4a;
+    font-size: 10px;
+    padding: 6px 10px;
+    text-align: center;
+    margin: 6px 0;
+    animation: shake 0.5s ease;
+}
+
+/* Başarı mesajı */
+.success-msg {
+    background: rgba(29,158,117,0.1);
+    border: 1px solid rgba(29,158,117,0.3);
+    border-radius: 6px;
+    color: #00ff88;
+    font-size: 10px;
+    padding: 6px 10px;
+    text-align: center;
+    margin: 6px 0;
+    animation: screenFadeIn 0.3s ease;
+}
+
+/* Loading spinner */
+.loading-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(13,17,23,0.85);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    z-index: 50;
+    backdrop-filter: blur(2px);
+}
+
+.spinner {
+    width: 28px; height: 28px;
+    border: 3px solid #1e3045;
+    border-top-color: #00ff88;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.loading-text {
+    font-size: 10px;
+    color: #4a6070;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+}
+
+/* Ekran titreme animasyonu */
+@keyframes shake {
+    0%,100% { transform: translateX(0); }
+    20%      { transform: translateX(-6px); }
+    40%      { transform: translateX(6px); }
+    60%      { transform: translateX(-4px); }
+    80%      { transform: translateX(4px); }
+}
+
+/* Kart bloke ekranı */
+.blocked-screen {
+    background: #0d1117;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    gap: 8px;
+}
+
+.blocked-icon { font-size: 42px; color: #e24b4a; animation: pulse-red 0.5s infinite; line-height: 1; }
+
+/* ============================================================
+   OTURUM BİLGİSİ (SAĞ ÜST)
+   ============================================================ */
+
+.session-bar {
+    position: absolute;
+    bottom: 12px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0,0,0,0.5);
+    border: 1px solid #1e3045;
+    border-radius: 20px;
+    padding: 4px 14px;
+    font-size: 10px;
+    color: #4a6070;
+    white-space: nowrap;
+    z-index: 20;
+    backdrop-filter: blur(4px);
+}
+
+.session-bar span { color: #00ff88; font-weight: 600; }
+.session-bar.warning span { color: #f0c040; }
+.session-bar.critical span { color: #e24b4a; }
+
+/* ============================================================
+   TRANSFER: GİRİŞ ALANI
+   ============================================================ */
+
+.input-field {
+    width: 100%;
+    background: #060c12;
+    border: 1px solid #1e3045;
+    border-radius: 6px;
+    color: #00ff88;
+    font-size: 13px;
+    padding: 8px 10px;
+    outline: none;
+    transition: border-color 0.2s;
+    margin-bottom: 8px;
+    font-family: monospace;
+    letter-spacing: 1px;
+}
+
+.input-field:focus { border-color: #1a73e8; }
+.input-field::placeholder { color: #2a3a4a; letter-spacing: 0.5px; }
+
+.input-label {
+    font-size: 9px;
+    color: #4a6070;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    margin-bottom: 4px;
+}
+
+/* Transfer onay özeti */
+.transfer-summary {
+    background: #060c12;
+    border: 1px solid #1a73e8;
+    border-radius: 8px;
+    padding: 12px;
+    margin: 8px 0;
+}
+
+.summary-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 11px;
+    padding: 3px 0;
+    color: #8a9faf;
+}
+
+.summary-row .value { color: #c8d8e8; font-weight: 600; }
+.summary-row.total .value { color: #00ff88; font-size: 14px; }
+
+/* ============================================================
+   MOBİL UYUMLULUK
+   ============================================================ */
+
+@media (max-width: 480px) {
+    .atm-room { align-items: flex-start; padding-top: 0; }
+    .atm-room::before, .atm-room::after { display: none; }
+
+    .atm-machine {
+        width: 100vw;
+        min-height: 100vh;
+        border-radius: 0;
+        padding: 16px;
+    }
+
+    .atm-screen { height: calc(100vh - 200px); }
+    .atm-shadow { display: none; }
+}
+
+@media (max-height: 700px) {
+    .atm-screen { height: 260px; }
+}
+
+/* ============================================================
+   PIN EKRANI EK STİLLER
+   ============================================================ */
+
+.pin-header { text-align: center; margin-bottom: 6px; }
+.pin-greeting { font-size: 9px; color: #4a6070; letter-spacing: 1.5px; text-transform: uppercase; }
+.pin-name { font-size: 14px; color: #00ff88; font-weight: 600; margin-top: 2px; }
+.pin-label { font-size: 10px; color: #6b7f8f; letter-spacing: 1px; margin-bottom: 4px; text-align: center; }
+
+.numpad {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 5px;
+    margin-top: auto;
+    padding-top: 4px;
+}
+
+.numpad-btn {
+    height: 34px;
+    background: #111b26;
+    border: 1px solid #1e3045;
+    border-radius: 6px;
+    color: #fff;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.1s, transform 0.1s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.numpad-btn:hover  { background: #162030; border-color: #2a4a6a; }
+.numpad-btn:active { transform: scale(0.95); }
+.numpad-btn:disabled { opacity: 0.35; cursor: not-allowed; transform: none; }
+
+.delete-btn { color: #e24b4a; font-size: 17px; }
+.ok-btn { background: #0d4a2a; border-color: #1d9e75; color: #00ff88; }
+.ok-btn:hover { background: #105830; }
+
+/* ============================================================
+   ANA MENÜ EK STİLLER
+   ============================================================ */
+
+.menu-header { margin-bottom: 8px; }
+.menu-greeting { font-size: 9px; color: #4a6070; letter-spacing: 1px; text-transform: uppercase; }
+.menu-balance-preview { font-size: 12px; color: #8a9faf; margin-top: 2px; }
+.menu-balance-preview span { color: #00ff88; font-weight: 600; }
+.menu-icon { font-size: 20px; display: block; }
+.menu-label { font-size: 10px; }
+
+/* ============================================================
+   BAKİYE EKRANI EK STİLLER
+   ============================================================ */
+
+.balance-title {
+    font-size: 9px;
+    letter-spacing: 2.5px;
+    color: #4a6070;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+}
+
+.balance-account {
+    font-size: 10px;
+    color: #3a5060;
+    letter-spacing: 2px;
+    margin-bottom: 12px;
+    text-align: center;
+}
+
+/* ============================================================
+   PARA ÇEK / YATIR / TRANSFER EK STİLLER
+   ============================================================ */
+
+.withdraw-screen, .deposit-screen, .transfer-screen {
+    background: #0d1117;
+    gap: 8px;
+}
+
+.balance-info { font-size: 10px; color: #6b7f8f; margin-bottom: 6px; }
+.balance-info strong { color: #00ff88; }
+
+.quick-btn {
+    height: 36px;
+    background: #111b26;
+    border: 1px solid #1e3045;
+    border-radius: 6px;
+    color: #c8d8e8;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.1s, border-color 0.1s, transform 0.1s;
+}
+
+.quick-btn:hover  { background: #162030; border-color: #1a73e8; color: #fff; }
+.quick-btn:active { transform: scale(0.96); }
+.quick-btn.disabled-amount { opacity: 0.35; cursor: not-allowed; }
+.quick-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+
+.screen-btn.secondary { border-color: #2a4060; color: #6b8faf; }
+
+/* Onay kutusu */
+.confirm-box {
+    background: #060c12;
+    border: 1px solid #1a3050;
+    border-radius: 8px;
+    padding: 10px 12px;
+    margin: 4px 0;
+}
+
+.confirm-text { font-size: 11px; color: #8a9faf; padding: 2px 0; }
+
+.confirm-row { display: flex; justify-content: space-between; padding: 3px 0; }
+.confirm-label { font-size: 10px; color: #4a6070; }
+.confirm-value { font-size: 10px; color: #c8d8e8; font-weight: 600; }
+
+/* ============================================================
+   İŞLEM GEÇMİŞİ EK STİLLER
+   ============================================================ */
+
+.history-screen { background: #0d1117; }
+.empty-history { font-size: 11px; color: #3a5060; text-align: center; margin-top: 20px; }
+
+.history-list {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    overflow-y: auto;
+    flex: 1;
+    scrollbar-width: thin;
+    scrollbar-color: #1e3045 transparent;
+}
+
+.history-item {
+    display: grid;
+    grid-template-columns: 22px 1fr auto;
+    gap: 6px;
+    align-items: center;
+    padding: 6px 8px;
+    background: #111b26;
+    border-radius: 6px;
+    border-left: 3px solid #1e3045;
+    font-size: 10px;
+}
+
+.history-item.tx-deposit    { border-color: #1d9e75; }
+.history-item.tx-withdrawal { border-color: #e24b4a; }
+.history-item.tx-transfer   { border-color: #1a73e8; }
+
+.history-icon { font-size: 13px; font-weight: 700; text-align: center; }
+.history-item.tx-deposit    .history-icon { color: #1d9e75; }
+.history-item.tx-withdrawal .history-icon { color: #e24b4a; }
+.history-item.tx-transfer   .history-icon { color: #1a73e8; }
+
+.history-detail { min-width: 0; }
+.history-desc { font-size: 10px; color: #c8d8e8; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.history-date { font-size: 8px; color: #3a5060; margin-top: 1px; }
+
+.history-right { text-align: right; }
+
+.history-amount {
+    font-size: 11px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+.history-item.tx-deposit    .history-amount { color: #1d9e75; }
+.history-item.tx-withdrawal .history-amount { color: #e24b4a; }
+.history-item.tx-transfer   .history-amount { color: #1a73e8; }
+
+.history-balance { font-size: 8px; color: #3a5060; margin-top: 1px; white-space: nowrap; }
+
+/* ============================================================
+   KART BLOKE EKRANI EK STİLLER
+   ============================================================ */
+
+.blocked-title { font-size: 16px; font-weight: 700; color: #e24b4a; margin-top: 6px; }
+.blocked-msg   { font-size: 11px; color: #8a9faf; text-align: center; padding: 0 8px; }
+.blocked-sub   { font-size: 9px;  color: #4a6070; text-align: center; }

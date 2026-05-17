@@ -1,0 +1,101 @@
+@inject ATMStateService State
+@inject IJSRuntime JS
+@implements IAsyncDisposable
+
+<div class="screen-content pin-screen">
+    <div class="pin-header">
+        <div class="pin-greeting">Hoş Geldiniz</div>
+        <div class="pin-name">@State.CardholderName</div>
+    </div>
+
+    <div class="pin-label">PIN Giriniz</div>
+
+    <div class="pin-dots @(_shake ? "shake" : "")">
+        @for (int i = 0; i < 4; i++)
+        {
+            <div class="pin-dot @(i < _pin.Length ? "filled" : "")"></div>
+        }
+    </div>
+
+    @if (State.HasError)
+    {
+        <div class="error-msg">@State.ErrorMessage</div>
+    }
+
+    <div class="numpad">
+        @foreach (var key in _keys)
+        {
+            if (key == "DEL")
+            {
+                <button class="numpad-btn delete-btn" @onclick="DeleteDigit">⌫</button>
+            }
+            else if (key == "OK")
+            {
+                <button class="numpad-btn ok-btn" @onclick="Confirm" disabled="@(_pin.Length != 4)">✓</button>
+            }
+            else
+            {
+                var digit = key;
+                <button class="numpad-btn" @onclick="() => AddDigit(digit)">@digit</button>
+            }
+        }
+    </div>
+</div>
+
+@code {
+    private string _pin = "";
+    private bool _shake = false;
+    private readonly string[] _keys = { "1","2","3","4","5","6","7","8","9","DEL","0","OK" };
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+            await JS.InvokeVoidAsync("atmJs.initKeyboard", DotNetObjectReference.Create(this));
+    }
+
+    private void AddDigit(string d)
+    {
+        if (_pin.Length < 4) _pin += d;
+    }
+
+    private void DeleteDigit()
+    {
+        if (_pin.Length > 0) _pin = _pin[..^1];
+    }
+
+    private async Task Confirm()
+    {
+        if (_pin.Length != 4) return;
+        var pinToVerify = _pin;
+        _pin = "";
+        await State.VerifyPinAsync(pinToVerify);
+        if (State.HasError)
+        {
+            _shake = true;
+            StateHasChanged();
+            await Task.Delay(600);
+            _shake = false;
+            StateHasChanged();
+        }
+    }
+
+    [JSInvokable]
+    public async Task HandleKey(string key)
+    {
+        if (key.Length == 1 && key[0] >= '0' && key[0] <= '9')
+            AddDigit(key);
+        else if (key == "Backspace")
+            DeleteDigit();
+        else if (key == "Enter")
+        {
+            await Confirm();
+            return;
+        }
+        StateHasChanged();
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        try { await JS.InvokeVoidAsync("atmJs.disposeKeyboard"); } catch { }
+    }
+}

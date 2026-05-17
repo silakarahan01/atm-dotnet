@@ -1,0 +1,140 @@
+@inject ATMStateService State
+@inject IJSRuntime JS
+@implements IDisposable
+
+<div class="atm-room">
+    <div class="atm-shadow"></div>
+
+    <div class="atm-machine @(State.HasError ? "error-state" : "")">
+
+        <!-- Üst: Logo + Durum Işığı -->
+        <div class="atm-header">
+            <div class="atm-brand">
+                <i class="bi bi-bank2 brand-icon"></i>
+                <span class="brand-name">Sila Bank</span>
+            </div>
+            <div class="status-light @StatusLightClass"></div>
+        </div>
+
+        <!-- Ekran Çerçevesi -->
+        <div class="atm-screen-frame">
+            <div class="atm-screen" id="atm-screen">
+                @* Ekranlar arasında geçişte @key yeniden render tetikler *@
+                @switch (State.CurrentScreen)
+                {
+                    case ATMScreen.Welcome:
+                        <WelcomeScreen @key="ATMScreen.Welcome" />
+                        break;
+                    case ATMScreen.Pin:
+                        <PinScreen @key="ATMScreen.Pin" />
+                        break;
+                    case ATMScreen.Menu:
+                        <MenuScreen @key="ATMScreen.Menu" />
+                        break;
+                    case ATMScreen.Balance:
+                        <BalanceScreen @key="ATMScreen.Balance" />
+                        break;
+                    case ATMScreen.Withdraw:
+                        <WithdrawScreen @key="ATMScreen.Withdraw" />
+                        break;
+                    case ATMScreen.Deposit:
+                        <DepositScreen @key="ATMScreen.Deposit" />
+                        break;
+                    case ATMScreen.Transfer:
+                        <TransferScreen @key="ATMScreen.Transfer" />
+                        break;
+                    case ATMScreen.History:
+                        <HistoryScreen @key="ATMScreen.History" />
+                        break;
+                    case ATMScreen.CardBlocked:
+                        <CardBlockedScreen @key="ATMScreen.CardBlocked" />
+                        break;
+                }
+
+                @if (State.IsLoading)
+                {
+                    <div class="loading-overlay">
+                        <div class="spinner"></div>
+                        <div class="loading-text">İşlem yapılıyor</div>
+                    </div>
+                }
+            </div>
+        </div>
+
+        <!-- Alt Panel: Yuvalar -->
+        <div class="atm-panel">
+            <!-- Kart Yuvası -->
+            <div class="atm-slot card-slot">
+                <div class="slot-label">Kart</div>
+                <div class="slot-opening">
+                    @if (State.IsCardAnimating)
+                    {
+                        <div class="card-in"></div>
+                    }
+                </div>
+            </div>
+
+            <!-- Orta Noktalar -->
+            <div class="atm-panel-center">
+                <div class="panel-dot"></div>
+                <div class="panel-dot"></div>
+                <div class="panel-dot"></div>
+            </div>
+
+            <!-- Para Yuvası -->
+            <div class="atm-slot money-slot">
+                <div class="slot-label">Nakit</div>
+                <div class="slot-wrapper">
+                    @if (State.IsMoneyAnimating)
+                    {
+                        <div class="cash-dispense">
+                            <div class="bill bill-1"></div>
+                            <div class="bill bill-2"></div>
+                            <div class="bill bill-3"></div>
+                            <div class="bill bill-4"></div>
+                            <div class="bill bill-5"></div>
+                        </div>
+                    }
+                    <div class="slot-opening"></div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    @if (State.CurrentScreen != ATMScreen.Welcome && State.CurrentScreen != ATMScreen.CardBlocked)
+    {
+        <div class="session-bar @SessionBarClass">
+            Oturum: <span>@State.SessionCountdown s</span>
+        </div>
+    }
+</div>
+
+@code {
+    protected override void OnInitialized()
+    {
+        State.OnChange += HandleStateChange;
+    }
+
+    private async void HandleStateChange()
+    {
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private string StatusLightClass => State.CurrentScreen switch
+    {
+        ATMScreen.Welcome     => "green",
+        ATMScreen.CardBlocked => "red",
+        _ when State.HasError => "red",
+        _ when State.IsLoading => "yellow",
+        _ => "green"
+    };
+
+    private string SessionBarClass => State.SessionCountdown <= 10 ? "critical"
+        : State.SessionCountdown <= 20 ? "warning" : "";
+
+    public void Dispose()
+    {
+        State.OnChange -= HandleStateChange;
+    }
+}

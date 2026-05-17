@@ -1,0 +1,60 @@
+@inject ATMStateService State
+
+<div class="screen-content history-screen">
+    <div class="screen-title">İşlem Geçmişi</div>
+
+    @if (State.IsLoading)
+    {
+        <div class="loading-text">Yükleniyor...</div>
+    }
+    else if (!State.Transactions.Any())
+    {
+        <div class="empty-history">Henüz işlem bulunmuyor.</div>
+    }
+    else
+    {
+        <div class="history-list">
+            @foreach (var tx in State.Transactions)
+            {
+                <div class="history-item @GetTypeClass(tx.Type)">
+                    <i class="@GetIconClass(tx.Type) history-icon"></i>
+                    <div class="history-detail">
+                        <div class="history-desc">@tx.Description</div>
+                        <div class="history-date">@tx.CreatedAt.ToString("dd.MM.yyyy HH:mm")</div>
+                    </div>
+                    <div class="history-right">
+                        <div class="history-amount">@GetSign(tx.Type)@tx.Amount.ToString("N2") ₺</div>
+                        <div class="history-balance">Bakiye: @tx.BalanceAfter.ToString("N2") ₺</div>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+
+    <button class="screen-btn back-btn" @onclick="() => State.NavigateTo(ATMScreen.Menu)">← Ana Menü</button>
+</div>
+
+@code {
+    protected override async Task OnInitializedAsync()
+    {
+        await State.LoadHistoryAsync();
+    }
+
+    private string GetTypeClass(string type) => type switch
+    {
+        "Deposit"    => "tx-deposit",
+        "Withdrawal" => "tx-withdrawal",
+        "Transfer"   => "tx-transfer",
+        _            => ""
+    };
+
+    private string GetIconClass(string type) => type switch
+    {
+        "Deposit"    => "bi bi-arrow-down-circle-fill",
+        "Withdrawal" => "bi bi-arrow-up-circle-fill",
+        "Transfer"   => "bi bi-arrow-left-right",
+        _            => "bi bi-circle"
+    };
+
+    private string GetSign(string type) => type == "Deposit" ? "+" : type == "Withdrawal" ? "-" : "";
+}

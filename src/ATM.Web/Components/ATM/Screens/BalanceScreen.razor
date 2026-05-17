@@ -1,0 +1,27 @@
+@inject ATMStateService State
+@inject IJSRuntime JS
+
+<div class="screen-content balance-screen">
+    <div class="balance-title">Hesap Bakiyesi</div>
+    <div class="balance-account">@State.AccountNumber</div>
+
+    <div class="balance-amount" id="balance-counter">0,00 ₺</div>
+
+    @if (State.HasError)
+    {
+        <div class="error-msg">@State.ErrorMessage</div>
+    }
+
+    <button class="screen-btn back-btn" style="margin-top:auto;" @onclick="() => State.NavigateTo(ATMScreen.Menu)">← Ana Menü</button>
+</div>
+
+@code {
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await State.RefreshBalanceAsync();
+            await JS.InvokeVoidAsync("atmJs.animateBalance", "balance-counter", (double)State.Balance);
+        }
+    }
+}

@@ -1,0 +1,13 @@
+@inject ATMStateService State
+
+<div class="screen-content blocked-screen">
+    <div class="blocked-icon"><i class="bi bi-shield-lock-fill"></i></div>
+    <div class="blocked-title">Kart Bloke</div>
+    <div class="blocked-msg">
+        Kartınız çok fazla hatalı PIN girişi nedeniyle bloke edilmiştir.
+    </div>
+    <div class="blocked-sub">
+        Lütfen bankanızla iletişime geçiniz.
+    </div>
+    <button class="screen-btn back-btn" @onclick="State.Logout">Ana Ekrana Dön</button>
+</div>
