@@ -1,31 +1,28 @@
-using ATM.API.Services;
-using ATM.Core.DTOs.Auth;
+using ATM.API.Contracts;
+using ATM.Application.Features.Auth.ChangePin;
+using ATM.Application.Features.Auth.Login;
+using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace ATM.API.Controllers;
 
-[ApiController]
-[Route("api/[controller]")]
-public class AuthController : ControllerBase
+public sealed class AuthController(ISender sender) : ApiController(sender)
 {
-    private readonly AuthService _authService;
-
-    public AuthController(AuthService authService) => _authService = authService;
-
     [HttpPost("login")]
-    public async Task<IActionResult> Login([FromBody] LoginRequestDto request)
+    public async Task<IActionResult> Login([FromBody] LoginCommand command, CancellationToken cancellationToken)
     {
-        var result = await _authService.LoginAsync(request);
-        return Ok(result);
+        var result = await Sender.Send(command, cancellationToken);
+        return result.IsSuccess ? Ok(result.Value) : HandleFailure(result.Error);
     }
 
     [Authorize]
     [HttpPut("change-pin")]
-    public async Task<IActionResult> ChangePin([FromBody] ChangePinRequestDto request)
+    public async Task<IActionResult> ChangePin([FromBody] ChangePinRequest request, CancellationToken cancellationToken)
     {
-        var cardId = int.Parse(User.FindFirst("cardId")!.Value);
-        await _authService.ChangePinAsync(cardId, request);
-        return Ok(new { message = "PIN başarıyla güncellendi." });
+        var result = await Sender.Send(new ChangePinCommand(CardId, request.CurrentPin, request.NewPin), cancellationToken);
+        return result.IsSuccess
+            ? Ok(new { message = "PIN başarıyla güncellendi." })
+            : HandleFailure(result.Error);
     }
 }

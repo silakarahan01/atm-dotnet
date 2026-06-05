@@ -1,16 +1,14 @@
-using ATM.Core.Entities;
+using ATM.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 
 namespace ATM.Infrastructure.Data;
 
-public class AppDbContext : DbContext
+public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(options)
 {
-    public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) { }
-
-    public DbSet<User> Users { get; set; }
-    public DbSet<Card> Cards { get; set; }
-    public DbSet<Account> Accounts { get; set; }
-    public DbSet<Transaction> Transactions { get; set; }
+    public DbSet<User> Users => Set<User>();
+    public DbSet<Card> Cards => Set<Card>();
+    public DbSet<Account> Accounts => Set<Account>();
+    public DbSet<Transaction> Transactions => Set<Transaction>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

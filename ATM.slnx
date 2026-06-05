@@ -1,9 +1,15 @@
 <Solution>
   <Folder Name="/src/">
+    <Project Path="src/ATM.Domain/ATM.Domain.csproj" />
+    <Project Path="src/ATM.Application/ATM.Application.csproj" />
+    <Project Path="src/ATM.Infrastructure/ATM.Infrastructure.csproj" />
     <Project Path="src/ATM.API/ATM.API.csproj" />
     <Project Path="src/ATM.ConsoleClient/ATM.ConsoleClient.csproj" />
-    <Project Path="src/ATM.Core/ATM.Core.csproj" />
-    <Project Path="src/ATM.Infrastructure/ATM.Infrastructure.csproj" />
     <Project Path="src/ATM.Web/ATM.Web.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/ATM.Domain.UnitTests/ATM.Domain.UnitTests.csproj" />
+    <Project Path="tests/ATM.Application.UnitTests/ATM.Application.UnitTests.csproj" />
+    <Project Path="tests/ATM.API.IntegrationTests/ATM.API.IntegrationTests.csproj" />
   </Folder>
 </Solution>

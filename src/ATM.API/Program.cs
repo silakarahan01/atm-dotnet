@@ -1,10 +1,9 @@
 using System.Text;
-using ATM.API.Configuration;
 using ATM.API.Middleware;
-using ATM.API.Services;
-using ATM.Core.Interfaces;
+using ATM.Application;
+using ATM.Infrastructure;
 using ATM.Infrastructure.Data;
-using ATM.Infrastructure.Repositories;
+using ATM.Infrastructure.Security;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -12,26 +11,12 @@ using Scalar.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// 1. Configuration
-var jwtSettings = builder.Configuration.GetSection("JwtSettings").Get<JwtSettings>()!;
-builder.Services.Configure<JwtSettings>(builder.Configuration.GetSection("JwtSettings"));
+// Uygulama (CQRS) + Altyapı (EF Core/PostgreSQL, repo'lar, güvenlik) katmanları
+builder.Services.AddApplication();
+builder.Services.AddInfrastructure(builder.Configuration);
 
-// 2. Database
-builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")));
-
-// 3. Repositories
-builder.Services.AddScoped<ICardRepository, CardRepository>();
-builder.Services.AddScoped<IAccountRepository, AccountRepository>();
-builder.Services.AddScoped<ITransactionRepository, TransactionRepository>();
-builder.Services.AddScoped<IUserRepository, UserRepository>();
-
-// 4. Services
-builder.Services.AddScoped<AuthService>();
-builder.Services.AddScoped<AccountService>();
-builder.Services.AddScoped<TransactionService>();
-
-// 5. JWT Authentication
+// JWT kimlik doğrulama
+var jwt = builder.Configuration.GetSection(JwtOptions.SectionName).Get<JwtOptions>()!;
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
@@ -41,22 +26,22 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidateAudience = true,
             ValidateLifetime = true,
             ValidateIssuerSigningKey = true,
-            ValidIssuer = jwtSettings.Issuer,
-            ValidAudience = jwtSettings.Audience,
-            IssuerSigningKey = new SymmetricSecurityKey(
-                Encoding.UTF8.GetBytes(jwtSettings.SecretKey))
+            ValidIssuer = jwt.Issuer,
+            ValidAudience = jwt.Audience,
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwt.SecretKey))
         };
     });
-
 builder.Services.AddAuthorization();
 
-// 6. Controllers + OpenAPI (Scalar UI)
+// Web API + OpenAPI (Scalar) + standart hata yönetimi
 builder.Services.AddControllers();
 builder.Services.AddOpenApi();
+builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
+builder.Services.AddProblemDetails();
 
 var app = builder.Build();
 
-// 7. Auto-migrate and seed database on startup
+// Açılışta otomatik migrate + seed
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
@@ -64,7 +49,8 @@ using (var scope = app.Services.CreateScope())
     DatabaseSeeder.Seed(db);
 }
 
-// 8. Middleware pipeline
+app.UseExceptionHandler();
+
 app.MapOpenApi();
 app.MapScalarApiReference(options =>
 {
@@ -75,9 +61,11 @@ app.MapScalarApiReference(options =>
     });
 });
 
-app.UseMiddleware<ExceptionMiddleware>();
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
 
 app.Run();
+
+// Entegrasyon testlerinin WebApplicationFactory ile erişebilmesi için
+public partial class Program;

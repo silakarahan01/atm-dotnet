@@ -97,6 +97,11 @@ public class ApiClient
 
     private record LoginResponse(string Token, DateTime ExpiresAt, string CardholderName);
     private record BalanceResponse(decimal Balance, string AccountNumber, string AccountType);
-    private record ErrorResponse(string Message);
+
+    // API, hataları RFC 7807 ProblemDetails biçiminde döner: { title, detail, status }
+    private record ErrorResponse(string? Detail, string? Title)
+    {
+        public string Message => Detail ?? Title ?? "Bilinmeyen hata";
+    }
     public record TransactionItem(int Id, string Type, decimal Amount, decimal BalanceAfter, string? Description, DateTime CreatedAt);
 }

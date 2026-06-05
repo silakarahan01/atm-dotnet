@@ -1,44 +1,64 @@
-# ATM Projesi — C# .NET
+# ATM Projesi — Clean Architecture & CQRS (.NET 10)
 
-Bir banka ATM sistemini simüle eden, **ASP.NET Core Web API** backend, **Blazor Server** web arayüzü ve **Spectre.Console** terminal istemcisinden oluşan tam katmanlı bir .NET uygulaması.
+Bir banka ATM sistemini simüle eden, **Clean Architecture** ve **CQRS** desenleriyle kurgulanmış tam katmanlı bir .NET çözümü. Backend **ASP.NET Core Web API**, web arayüzü **Blazor Server**, terminal istemcisi **Spectre.Console** ile yazılmıştır. Veriler **PostgreSQL** üzerinde **EF Core** ile tutulur; çözüm **Docker** ile çalışır ve **birim + entegrasyon testleriyle** kapsanmıştır.
 
-## Özellikler
+## Öne Çıkan Mimari Özellikler
 
-- JWT tabanlı kimlik doğrulama (Kart No + PIN)
-- 3 hatalı girişte kart kilitleme
-- Para yatırma / çekme / havale (EFT)
-- İşlem geçmişi
-- SQLite veritabanı (EF Core)
-- Gerçekçi ATM simülasyonu web arayüzü (Blazor Server)
-- Renkli terminal arayüzü (Spectre.Console)
-- API dokümantasyonu (Scalar UI)
+- **Clean Architecture** — Domain / Application / Infrastructure / Presentation katmanları, bağımlılıklar içe doğru akar.
+- **CQRS (MediatR)** — Her işlem ayrı bir `Command`/`Query` + `Handler`; ince controller'lar yalnızca `mediator.Send(...)` çağırır.
+- **Tek iş-mantığı kaynağı** — Hem Web API hem Blazor arayüzü aynı MediatR handler'larını kullanır; kod tekrarı yoktur.
+- **Result deseni** — İş kuralı hataları exception yerine `Result`/`Error` ile taşınır; akış öngörülebilir.
+- **Davranışlı domain** — Bakiye ve kart bloke kuralları entity'lerin içindedir (`Account.Withdraw`, `Card.RegisterFailedAttempt`).
+- **MediatR pipeline behavior'ları** — Otomatik `FluentValidation` doğrulaması ve loglama, cross-cutting olarak tek yerde.
+- **Atomik transfer** — `IUnitOfWork` ile kaynak ve hedef hesap güncellemesi tek transaction'da; para "yolda kaybolmaz".
+- **RFC 7807 ProblemDetails** — Tutarlı, standart hata yanıtları; `IExceptionHandler` ile beklenmeyen hatalar.
+- **Test kapsamı** — xUnit birim testleri (domain + handler) ve Testcontainers ile gerçek PostgreSQL'e karşı uçtan uca entegrasyon testleri.
 
 ## Teknolojiler
 
-| Katman | Teknoloji |
+| Alan | Teknoloji |
 |---|---|
 | Backend | ASP.NET Core 10 Web API |
+| Mimari | Clean Architecture + CQRS (MediatR) |
+| Doğrulama | FluentValidation (pipeline behavior) |
 | Web UI | Blazor Server (Interactive Server) |
-| ORM | Entity Framework Core 10 + SQLite |
-| Kimlik Doğrulama | JWT Bearer Token + BCrypt |
 | Terminal UI | Spectre.Console |
-| API Dokümantasyonu | Scalar |
+| ORM / Veritabanı | Entity Framework Core 10 + PostgreSQL |
+| Kimlik Doğrulama | JWT Bearer Token + BCrypt |
+| Konteyner | Docker + Docker Compose |
+| API Dokümantasyonu | OpenAPI + Scalar |
+| Test | xUnit, FluentAssertions, NSubstitute, Testcontainers, WebApplicationFactory |
 
 ## Proje Yapısı
 
 ```
-ATM.sln
+ATM.slnx
 ├── src/
-│   ├── ATM.Core/            # Entity'ler, DTO'lar, Interface'ler
-│   ├── ATM.Infrastructure/  # EF Core, Repository'ler, Veritabanı
-│   ├── ATM.API/             # Web API, Controller'lar, JWT
-│   ├── ATM.ConsoleClient/   # Terminal ATM ekranı (Spectre.Console)
-│   └── ATM.Web/             # Blazor Server ATM simülasyonu
+│   ├── ATM.Domain/          # Entity'ler (davranışlı), Enum'lar, Result/Error, domain hataları — sıfır bağımlılık
+│   ├── ATM.Application/      # CQRS Command/Query + Handler, FluentValidation, pipeline behavior'lar, soyutlamalar
+│   ├── ATM.Infrastructure/   # EF Core (PostgreSQL), Repository'ler, UnitOfWork, JWT/BCrypt, migration, seed
+│   ├── ATM.API/             # İnce controller'lar, JWT, ProblemDetails
+│   ├── ATM.Web/             # Blazor Server ATM simülasyonu (handler'ları doğrudan kullanır)
+│   └── ATM.ConsoleClient/   # Terminal ATM ekranı (API'ye HTTP ile bağlanır)
+└── tests/
+    ├── ATM.Domain.UnitTests/        # Domain iş kuralları
+    ├── ATM.Application.UnitTests/    # Handler ve validator testleri (NSubstitute)
+    └── ATM.API.IntegrationTests/     # Testcontainers + WebApplicationFactory ile uçtan uca
+```
+
+### Bağımlılık Akışı
+
+```
+ATM.Web ─┐
+ATM.API ─┼──► ATM.Application ──► ATM.Domain
+         │           ▲
+ATM.Infrastructure ──┘  (Application'ın soyutlamalarını uygular)
 ```
 
 ## Gereksinimler
 
 - [.NET 10 SDK](https://dotnet.microsoft.com/download)
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/) (PostgreSQL ve testler için)
 
 ## Kurulum ve Çalıştırma
 
@@ -47,59 +67,48 @@ git clone https://github.com/silakarahan01/atm-dotnet.git
 cd atm-dotnet
 ```
 
----
-
-### Seçenek 1 — Web Arayüzü (Blazor)
-
-Tek başına çalışır, ayrıca API başlatmaya gerek yoktur.
+### 1. PostgreSQL'i başlat (Docker)
 
 ```bash
-cd src/ATM.Web
-dotnet run
+docker compose up -d db
+```
+
+İlk açılışta uygulama veritabanını otomatik migrate eder ve test kullanıcılarını oluşturur.
+
+### 2a. Web Arayüzü (Blazor)
+
+```bash
+dotnet run --project src/ATM.Web
 ```
 
 Tarayıcıda aç: `http://localhost:5227`
 
-**Ekranlar:**
-- Karşılama → Kart numarası girişi
-- PIN → 4 haneli tuş takımı (klavye desteği)
-- Ana Menü → 5 işlem seçeneği
-- Bakiye Sorgulama → animasyonlu sayaç
-- Para Çekme → hızlı tutar butonları veya özel tutar
-- Para Yatırma → onaylı yatırma akışı
-- Havale / EFT → hedef hesap + tutar + onay özeti
-- İşlem Geçmişi → son 10 işlem
-
-**Öne çıkan detaylar:**
-- Banka odası arkaplanı (duvar/zemin gradyanı)
-- 3 boyutlu ATM makine gövdesi (CSS box-shadow)
-- Kart takma ve para çıkış animasyonları
-- Para çekiminde 5 banknotun slottan kademeli çıkışı
-- 60 saniyelik oturum sayacı (uyarı renkleriyle)
-- Bootstrap Icons
-
----
-
-### Seçenek 2 — Terminal İstemcisi (Spectre.Console)
-
-#### 1. API'yi başlat
+### 2b. API + Terminal İstemcisi
 
 ```bash
-cd src/ATM.API
-dotnet run
+# 1. terminal — API
+dotnet run --project src/ATM.API
+#   Scalar arayüzü: http://localhost:5169/scalar/v1
+
+# 2. terminal — Console Client
+dotnet run --project src/ATM.ConsoleClient
 ```
 
-İlk çalıştırmada veritabanı ve test kullanıcıları otomatik oluşturulur.  
-Scalar arayüzü: `http://localhost:5169/scalar/v1`
-
-#### 2. Console Client'ı başlat (yeni terminal)
+### Alternatif: Her şeyi Docker ile çalıştır
 
 ```bash
-cd src/ATM.ConsoleClient
-dotnet run
+docker compose up --build
 ```
 
----
+API: `http://localhost:5169` · PostgreSQL: `localhost:5432`
+
+## Testleri Çalıştırma
+
+```bash
+dotnet test
+```
+
+> Entegrasyon testleri, Testcontainers aracılığıyla geçici bir PostgreSQL konteyneri ayağa kaldırır; bunun için Docker'ın çalışıyor olması gerekir.
 
 ## Test Kullanıcıları
 
@@ -107,8 +116,6 @@ dotnet run
 |---|---|---|---|---|
 | Ahmet Yılmaz | `1234567890123456` | `1234` | TR001234567890 | 5.000 TL |
 | Fatma Kaya | `6543210987654321` | `5678` | TR009876543210 | 1.000 TL |
-
----
 
 ## API Endpoint'leri
 
@@ -120,27 +127,23 @@ dotnet run
 | GET | `/api/account/info` | Hesap bilgileri | Evet |
 | POST | `/api/transaction/deposit` | Para yatırma | Evet |
 | POST | `/api/transaction/withdraw` | Para çekme | Evet |
-| POST | `/api/transaction/transfer` | Hesaplar arası transfer | Evet |
+| POST | `/api/transaction/transfer` | Hesaplar arası transfer (atomik) | Evet |
 | GET | `/api/transaction/history` | İşlem geçmişi | Evet |
 
-## Mimari
+İş kuralı hataları (ör. yetersiz bakiye) `400`, kimlik/bloke hataları `401`, bulunamayan kayıtlar `404` ile **ProblemDetails** biçiminde döner.
+
+## İstek Akışı (CQRS)
 
 ```
-[ATM.Web]          [ATM.ConsoleClient]
- Blazor Server       Spectre.Console
-     │                     │ HTTP
-     │               [ATM.API]
-     │             Controller → Service → Repository
-     │                     │
-     └──────── [ATM.Infrastructure] ────────────────
-                    EF Core → SQLite
-                         │
-                    [ATM.Core]
-               Entity / DTO / Interface
+HTTP İsteği
+   │
+[Controller]  ── mediator.Send(Command/Query) ──►
+   │
+[LoggingBehavior] ► [ValidationBehavior] ► [Handler]
+                                              │
+                          [Repository] + [UnitOfWork] (EF Core / PostgreSQL)
+                                              │
+                                       Result<T> ◄── Domain (iş kuralları)
+   │
+ProblemDetails / 200 OK ◄──────────────────────┘
 ```
-
-- **ATM.Core**: Sıfır dış bağımlılık — sadece domain modelleri
-- **ATM.Infrastructure**: Veritabanı işlemleri, EF Core, seed
-- **ATM.API**: HTTP katmanı, JWT, iş mantığı servisleri
-- **ATM.Web**: Blazor Server, ATMStateService, tam UI simülasyonu
-- **ATM.ConsoleClient**: Terminal arayüzü, API'ye HTTP ile bağlanır

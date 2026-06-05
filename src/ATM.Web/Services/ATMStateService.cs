@@ -1,7 +1,13 @@
-using ATM.Core.DTOs.Transaction;
-using ATM.Core.Entities;
-using ATM.Core.Enums;
-using ATM.Core.Interfaces;
+using ATM.Application.Features.Account.GetBalance;
+using ATM.Application.Features.Auth.GetCardByNumber;
+using ATM.Application.Features.Auth.Login;
+using ATM.Application.Features.Transaction.Deposit;
+using ATM.Application.Features.Transaction.GetHistory;
+using ATM.Application.Features.Transaction.Transfer;
+using ATM.Application.Features.Transaction.Withdraw;
+using ATM.Domain.Common;
+using ATM.Domain.Errors;
+using MediatR;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace ATM.Web.Services;
@@ -11,11 +17,16 @@ public enum ATMScreen
     Welcome, Pin, Menu, Balance, Withdraw, Deposit, Transfer, History, CardBlocked
 }
 
-public class ATMStateService : IDisposable
+/// <summary>
+/// Blazor ATM simülasyonunun ekran/animasyon/oturum durumunu yönetir.
+/// İş mantığı içermez; tüm işlemleri API ile aynı MediatR komut/sorgularına devreder.
+/// </summary>
+public class ATMStateService(IServiceScopeFactory scopeFactory) : IDisposable
 {
-    private readonly IServiceScopeFactory _scopeFactory;
     private System.Threading.Timer? _sessionTimer;
     private const int SessionDuration = 60;
+
+    private string _cardNumber = "";
 
     public ATMScreen CurrentScreen { get; private set; } = ATMScreen.Welcome;
     public string CardholderName { get; private set; } = "";
@@ -31,14 +42,9 @@ public class ATMStateService : IDisposable
     public string? SuccessMessage { get; private set; }
     public bool IsMoneyAnimating { get; private set; }
     public bool IsCardAnimating { get; private set; }
-    public List<TransactionDto> Transactions { get; private set; } = new();
+    public IReadOnlyList<TransactionResponse> Transactions { get; private set; } = [];
 
     public event Action? OnChange;
-
-    public ATMStateService(IServiceScopeFactory scopeFactory)
-    {
-        _scopeFactory = scopeFactory;
-    }
 
     private void Notify() => OnChange?.Invoke();
 
@@ -47,6 +53,13 @@ public class ATMStateService : IDisposable
         ErrorMessage = null;
         SuccessMessage = null;
         HasError = false;
+    }
+
+    private async Task<TResponse> SendAsync<TResponse>(IRequest<TResponse> request)
+    {
+        using var scope = scopeFactory.CreateScope();
+        var sender = scope.ServiceProvider.GetRequiredService<ISender>();
+        return await sender.Send(request);
     }
 
     public void InsertCard()
@@ -63,34 +76,32 @@ public class ATMStateService : IDisposable
 
         await Task.Delay(1200);
 
-        using var scope = _scopeFactory.CreateScope();
-        var cardRepo = scope.ServiceProvider.GetRequiredService<ICardRepository>();
+        var result = await SendAsync(new GetCardByNumberQuery(cardNumber));
 
-        var card = await cardRepo.GetByCardNumberAsync(cardNumber);
-
-        if (card == null)
+        if (result.IsFailure)
         {
-            HasError = true;
-            ErrorMessage = "Kart tanınmadı.";
             IsCardAnimating = false;
             IsLoading = false;
+
+            if (result.Error.Code == CardErrors.Blocked.Code)
+            {
+                NavigateTo(ATMScreen.CardBlocked);
+                return;
+            }
+
+            HasError = true;
+            ErrorMessage = "Kart tanınmadı.";
             Notify();
             return;
         }
 
-        if (card.IsBlocked)
-        {
-            IsCardAnimating = false;
-            IsLoading = false;
-            NavigateTo(ATMScreen.CardBlocked);
-            return;
-        }
-
-        CardId = card.Id;
+        var card = result.Value;
+        _cardNumber = cardNumber;
+        CardId = card.CardId;
         AccountId = card.AccountId;
-        AccountNumber = card.Account.AccountNumber;
-        CardholderName = $"{card.User.FirstName} {card.User.LastName}";
-        Balance = card.Account.Balance;
+        AccountNumber = card.AccountNumber;
+        CardholderName = card.CardholderName;
+        Balance = card.Balance;
         PinAttempts = 0;
 
         IsLoading = false;
@@ -106,49 +117,39 @@ public class ATMStateService : IDisposable
 
         await Task.Delay(600);
 
-        using var scope = _scopeFactory.CreateScope();
-        var cardRepo = scope.ServiceProvider.GetRequiredService<ICardRepository>();
+        var result = await SendAsync(new LoginCommand(_cardNumber, pin));
 
-        var card = await cardRepo.GetByIdAsync(CardId);
-        if (card == null) { Logout(); return; }
-
-        if (!BCrypt.Net.BCrypt.Verify(pin, card.PinHash))
+        if (result.IsSuccess)
         {
-            card.FailedAttempts++;
-            if (card.FailedAttempts >= 3)
-            {
-                card.IsBlocked = true;
-                await cardRepo.UpdateAsync(card);
-                IsLoading = false;
-                Notify();
-                await Task.Delay(1500);
-                NavigateTo(ATMScreen.CardBlocked);
-                return;
-            }
-
-            PinAttempts = card.FailedAttempts;
-            await cardRepo.UpdateAsync(card);
-            HasError = true;
-            ErrorMessage = $"Hatalı PIN. {3 - PinAttempts} deneme hakkınız kaldı.";
+            PinAttempts = 0;
             IsLoading = false;
-            Notify();
+            StartSessionTimer();
+            NavigateTo(ATMScreen.Menu);
             return;
         }
 
-        card.FailedAttempts = 0;
-        await cardRepo.UpdateAsync(card);
-        PinAttempts = 0;
+        // Kart bu denemeyle bloke olduysa bloke ekranına geç
+        if (result.Error.Code == CardErrors.JustBlocked.Code || result.Error.Code == CardErrors.Blocked.Code)
+        {
+            IsLoading = false;
+            Notify();
+            await Task.Delay(1500);
+            NavigateTo(ATMScreen.CardBlocked);
+            return;
+        }
+
+        PinAttempts++;
+        HasError = true;
+        ErrorMessage = result.Error.Message;
         IsLoading = false;
-        StartSessionTimer();
-        NavigateTo(ATMScreen.Menu);
+        Notify();
     }
 
     public async Task RefreshBalanceAsync()
     {
-        using var scope = _scopeFactory.CreateScope();
-        var repo = scope.ServiceProvider.GetRequiredService<IAccountRepository>();
-        var acc = await repo.GetByIdAsync(AccountId);
-        if (acc != null) Balance = acc.Balance;
+        var result = await SendAsync(new GetBalanceQuery(AccountId));
+        if (result.IsSuccess)
+            Balance = result.Value.Balance;
         Notify();
     }
 
@@ -158,36 +159,20 @@ public class ATMStateService : IDisposable
         ClearMessages();
         Notify();
 
-        if (amount > Balance)
+        await Task.Delay(600);
+
+        var result = await SendAsync(new WithdrawCommand(AccountId, amount));
+
+        if (result.IsFailure)
         {
             HasError = true;
-            ErrorMessage = "Yetersiz bakiye.";
+            ErrorMessage = result.Error.Message;
             IsLoading = false;
             Notify();
             return;
         }
 
-        await Task.Delay(600);
-
-        using var scope = _scopeFactory.CreateScope();
-        var accountRepo = scope.ServiceProvider.GetRequiredService<IAccountRepository>();
-        var txRepo = scope.ServiceProvider.GetRequiredService<ITransactionRepository>();
-
-        var account = await accountRepo.GetByIdAsync(AccountId);
-        if (account == null) { IsLoading = false; return; }
-
-        account.Balance -= amount;
-        await accountRepo.UpdateAsync(account);
-        await txRepo.AddAsync(new Transaction
-        {
-            Type = TransactionType.Withdrawal,
-            Amount = amount,
-            BalanceAfter = account.Balance,
-            AccountId = AccountId,
-            Description = "Para çekme"
-        });
-
-        Balance = account.Balance;
+        Balance -= amount;
         IsLoading = false;
         IsMoneyAnimating = true;
         Notify();
@@ -207,27 +192,21 @@ public class ATMStateService : IDisposable
         IsLoading = true;
         ClearMessages();
         Notify();
+
         await Task.Delay(1200);
 
-        using var scope = _scopeFactory.CreateScope();
-        var accountRepo = scope.ServiceProvider.GetRequiredService<IAccountRepository>();
-        var txRepo = scope.ServiceProvider.GetRequiredService<ITransactionRepository>();
+        var result = await SendAsync(new DepositCommand(AccountId, amount));
 
-        var account = await accountRepo.GetByIdAsync(AccountId);
-        if (account == null) { IsLoading = false; return; }
-
-        account.Balance += amount;
-        await accountRepo.UpdateAsync(account);
-        await txRepo.AddAsync(new Transaction
+        if (result.IsFailure)
         {
-            Type = TransactionType.Deposit,
-            Amount = amount,
-            BalanceAfter = account.Balance,
-            AccountId = AccountId,
-            Description = "Para yatırma"
-        });
+            HasError = true;
+            ErrorMessage = result.Error.Message;
+            IsLoading = false;
+            Notify();
+            return;
+        }
 
-        Balance = account.Balance;
+        Balance += amount;
         IsLoading = false;
         SuccessMessage = $"{amount:N2} ₺ başarıyla yatırıldı.";
         Notify();
@@ -243,61 +222,20 @@ public class ATMStateService : IDisposable
         ClearMessages();
         Notify();
 
-        if (amount > Balance)
-        {
-            HasError = true;
-            ErrorMessage = "Yetersiz bakiye.";
-            IsLoading = false;
-            Notify();
-            return;
-        }
-
         await Task.Delay(800);
 
-        using var scope = _scopeFactory.CreateScope();
-        var accountRepo = scope.ServiceProvider.GetRequiredService<IAccountRepository>();
-        var txRepo = scope.ServiceProvider.GetRequiredService<ITransactionRepository>();
+        var result = await SendAsync(new TransferCommand(AccountId, targetAccountNumber, amount));
 
-        var source = await accountRepo.GetByIdAsync(AccountId);
-        var target = await accountRepo.GetByAccountNumberAsync(targetAccountNumber);
-
-        if (target == null)
+        if (result.IsFailure)
         {
             HasError = true;
-            ErrorMessage = "Hedef hesap bulunamadı.";
+            ErrorMessage = result.Error.Message;
             IsLoading = false;
             Notify();
             return;
         }
 
-        if (source!.Id == target.Id)
-        {
-            HasError = true;
-            ErrorMessage = "Aynı hesaba transfer yapamazsınız.";
-            IsLoading = false;
-            Notify();
-            return;
-        }
-
-        source.Balance -= amount;
-        target.Balance += amount;
-        await accountRepo.UpdateAsync(source);
-        await accountRepo.UpdateAsync(target);
-
-        await txRepo.AddAsync(new Transaction
-        {
-            Type = TransactionType.Transfer, Amount = amount,
-            BalanceAfter = source.Balance, AccountId = AccountId,
-            TargetAccountId = target.Id, Description = $"Transfer → {targetAccountNumber}"
-        });
-        await txRepo.AddAsync(new Transaction
-        {
-            Type = TransactionType.Transfer, Amount = amount,
-            BalanceAfter = target.Balance, AccountId = target.Id,
-            Description = $"Transfer ← {source.AccountNumber}"
-        });
-
-        Balance = source.Balance;
+        Balance -= amount;
         IsLoading = false;
         SuccessMessage = $"{amount:N2} ₺ {targetAccountNumber} hesabına transfer edildi.";
         Notify();
@@ -309,14 +247,8 @@ public class ATMStateService : IDisposable
 
     public async Task LoadHistoryAsync()
     {
-        using var scope = _scopeFactory.CreateScope();
-        var txRepo = scope.ServiceProvider.GetRequiredService<ITransactionRepository>();
-        var list = await txRepo.GetByAccountIdAsync(AccountId, 10);
-        Transactions = list.Select(t => new TransactionDto
-        {
-            Id = t.Id, Type = t.Type.ToString(), Amount = t.Amount,
-            BalanceAfter = t.BalanceAfter, Description = t.Description, CreatedAt = t.CreatedAt
-        }).ToList();
+        var result = await SendAsync(new GetHistoryQuery(AccountId, 10));
+        Transactions = result.IsSuccess ? result.Value : [];
         Notify();
     }
 
@@ -331,6 +263,7 @@ public class ATMStateService : IDisposable
     public void Logout()
     {
         StopSessionTimer();
+        _cardNumber = "";
         CardholderName = ""; AccountId = 0; CardId = 0;
         Balance = 0; AccountNumber = ""; PinAttempts = 0;
         IsCardAnimating = false; IsMoneyAnimating = false;

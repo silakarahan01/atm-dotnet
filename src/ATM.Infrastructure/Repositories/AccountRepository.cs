@@ -1,29 +1,19 @@
-using ATM.Core.Entities;
-using ATM.Core.Interfaces;
+using ATM.Application.Abstractions.Persistence;
+using ATM.Domain.Entities;
 using ATM.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 
 namespace ATM.Infrastructure.Repositories;
 
-public class AccountRepository : IAccountRepository
+public sealed class AccountRepository(AppDbContext context) : IAccountRepository
 {
-    private readonly AppDbContext _context;
-
-    public AccountRepository(AppDbContext context) => _context = context;
-
-    public async Task<Account?> GetByIdAsync(int id)
-        => await _context.Accounts
+    public Task<Account?> GetByIdAsync(int id, CancellationToken cancellationToken = default)
+        => context.Accounts
             .Include(a => a.User)
-            .FirstOrDefaultAsync(a => a.Id == id);
+            .FirstOrDefaultAsync(a => a.Id == id, cancellationToken);
 
-    public async Task<Account?> GetByAccountNumberAsync(string accountNumber)
-        => await _context.Accounts
+    public Task<Account?> GetByAccountNumberAsync(string accountNumber, CancellationToken cancellationToken = default)
+        => context.Accounts
             .Include(a => a.User)
-            .FirstOrDefaultAsync(a => a.AccountNumber == accountNumber);
-
-    public async Task UpdateAsync(Account account)
-    {
-        _context.Accounts.Update(account);
-        await _context.SaveChangesAsync();
-    }
+            .FirstOrDefaultAsync(a => a.AccountNumber == accountNumber, cancellationToken);
 }

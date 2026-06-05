@@ -1,31 +1,25 @@
-using ATM.API.Services;
+using ATM.Application.Features.Account.GetAccountInfo;
+using ATM.Application.Features.Account.GetBalance;
+using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace ATM.API.Controllers;
 
-[ApiController]
-[Route("api/[controller]")]
 [Authorize]
-public class AccountController : ControllerBase
+public sealed class AccountController(ISender sender) : ApiController(sender)
 {
-    private readonly AccountService _accountService;
-
-    public AccountController(AccountService accountService) => _accountService = accountService;
-
     [HttpGet("balance")]
-    public async Task<IActionResult> GetBalance()
+    public async Task<IActionResult> GetBalance(CancellationToken cancellationToken)
     {
-        var accountId = int.Parse(User.FindFirst("accountId")!.Value);
-        var result = await _accountService.GetBalanceAsync(accountId);
-        return Ok(result);
+        var result = await Sender.Send(new GetBalanceQuery(AccountId), cancellationToken);
+        return result.IsSuccess ? Ok(result.Value) : HandleFailure(result.Error);
     }
 
     [HttpGet("info")]
-    public async Task<IActionResult> GetInfo()
+    public async Task<IActionResult> GetInfo(CancellationToken cancellationToken)
     {
-        var accountId = int.Parse(User.FindFirst("accountId")!.Value);
-        var result = await _accountService.GetAccountInfoAsync(accountId);
-        return Ok(result);
+        var result = await Sender.Send(new GetAccountInfoQuery(AccountId), cancellationToken);
+        return result.IsSuccess ? Ok(result.Value) : HandleFailure(result.Error);
     }
 }

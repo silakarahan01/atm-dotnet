@@ -1,26 +1,20 @@
-using ATM.Core.Entities;
-using ATM.Core.Interfaces;
+using ATM.Application.Abstractions.Persistence;
+using ATM.Domain.Entities;
 using ATM.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 
 namespace ATM.Infrastructure.Repositories;
 
-public class TransactionRepository : ITransactionRepository
+public sealed class TransactionRepository(AppDbContext context) : ITransactionRepository
 {
-    private readonly AppDbContext _context;
+    public async Task AddAsync(Transaction transaction, CancellationToken cancellationToken = default)
+        => await context.Transactions.AddAsync(transaction, cancellationToken);
 
-    public TransactionRepository(AppDbContext context) => _context = context;
-
-    public async Task AddAsync(Transaction transaction)
-    {
-        await _context.Transactions.AddAsync(transaction);
-        await _context.SaveChangesAsync();
-    }
-
-    public async Task<List<Transaction>> GetByAccountIdAsync(int accountId, int count = 10)
-        => await _context.Transactions
+    public async Task<IReadOnlyList<Transaction>> GetByAccountIdAsync(int accountId, int count, CancellationToken cancellationToken = default)
+        => await context.Transactions
             .Where(t => t.AccountId == accountId)
             .OrderByDescending(t => t.CreatedAt)
+            .ThenByDescending(t => t.Id)
             .Take(count)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 }

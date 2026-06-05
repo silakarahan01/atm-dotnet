@@ -1,0 +1,35 @@
+services:
+  db:
+    image: postgres:16
+    container_name: atm-postgres
+    environment:
+      POSTGRES_USER: atm
+      POSTGRES_PASSWORD: atm
+      POSTGRES_DB: atm
+    ports:
+      - "5432:5432"
+    volumes:
+      - atm-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U atm -d atm"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: .
+      dockerfile: src/ATM.API/Dockerfile
+    container_name: atm-api
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_HTTP_PORTS: "8080"
+      ConnectionStrings__DefaultConnection: "Host=db;Port=5432;Database=atm;Username=atm;Password=atm"
+    ports:
+      - "5169:8080"
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  atm-pgdata:
